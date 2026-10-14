@@ -22,7 +22,9 @@ const apitickets = require('./apitickets.js');
 
 // the desktop (Tauri) build serves the bundled UI from a custom-scheme origin, not the loopback http origin.
 const TAURI_ORIGINS = new Set(['tauri://localhost', 'http://tauri.localhost', 'https://tauri.localhost', 'app://localhost']);
-function loopbackOrigins(port) { return new Set(['http://127.0.0.1:' + port, 'http://localhost:' + port]); }
+// ponytail: tunnel host allow-list — env-driven so no code edit per host; upgrade path: real auth proxy in front
+const TUNNEL_ORIGINS = new Set(String(process.env.STARNET_TUNNEL_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean));
+function loopbackOrigins(port) { return new Set(['http://127.0.0.1:' + port, 'http://localhost:' + port, ...TUNNEL_ORIGINS]); }
 
 // Is this Origin one of ours? Absent Origin is allowed HERE because same-origin GETs and non-browser clients
 // omit it — but those callers are still gated by requiresApiToken (the token, not the origin, is their fence).
@@ -37,7 +39,9 @@ function isAllowedHost(host) {
   const br = h.match(/^\[([^\]]+)\](?::\d+)?$/);                              // [ipv6] or [ipv6]:port
   if (br) h = br[1];
   else if ((h.match(/:/g) || []).length === 1) h = h.replace(/:\d+$/, '');   // host:port (single colon = ipv4/name)
-  return h === '127.0.0.1' || h === 'localhost' || h === '::1';
+  if (h === '127.0.0.1' || h === 'localhost' || h === '::1') return true;
+  for (const o of TUNNEL_ORIGINS) if (h === o.replace(/^https?:\/\//, '').replace(/:\d+$/, '')) return true;
+  return false;
 }
 
 // the path portion of a request url, query stripped (so '/api/x?y=z' matches '/api/x').

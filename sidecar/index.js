@@ -21047,7 +21047,8 @@ async function handleProviderValidate(req, res) {
   if (providerRequiresKey(id) && !candidate) return json({ ok: false, provider: id, credentialVerified: false, error: 'a candidate key is required' });
   if (providerRequiresBaseUrl(id) && !baseUrl) return json({ ok: false, provider: id, credentialVerified: false, error: 'a base URL is required' });
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000); if (timer && timer.unref) timer.unref();
+  // ponytail: 15s default aborts slow gateways whose /models cold-build takes >20s (9router); 60s covers them
+  const timer = setTimeout(() => ctrl.abort(), 60000); if (timer && timer.unref) timer.unref();
   try {
     // OpenRouter's catalog is public; its authenticated /auth/key endpoint proves the candidate without spending
     // tokens. Other keyed providers protect /models, so a non-empty catalog proves both reachability and auth.
